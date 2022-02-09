@@ -1,6 +1,6 @@
 from django.shortcuts import redirect, render
 from .models import Message, Room, Topic
-from .form import RoomForm
+from .form import RoomForm, UserForm
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.contrib import messages
@@ -73,7 +73,7 @@ def rooms(request):
         Q(description__icontains=q)
         )
     rooms_count = rooms_from_db.count()
-    topics = Topic.objects.all()
+    topics = Topic.objects.all()[0:5]
     room_messages = Message.objects.filter(Q(room__topic__name__icontains=q))
     context = { 'rooms': rooms_from_db, 'topics': topics, 'rooms_count': rooms_count, 'room_messages': room_messages }
     return render(request, 'base/rooms.html', context)
@@ -170,3 +170,25 @@ def delete_message(request,pk):
         message.delete()
         return redirect('rooms')
     return render(request, 'base/delete.html', {'obj': message})
+
+@login_required(login_url='/login')
+def update_user(request):
+    form = UserForm(instance=request.user)
+
+    if request.method == 'POST':
+        form = UserForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            return redirect('user-profile', pk=request.user.id)
+
+    return render(request, 'base/update-user.html', {'form':form})
+
+def topic_page(request):
+    q = request.GET.get('q') if request.GET.get('q') != None else ''
+    topics = Topic.objects.filter(name__icontains=q)
+    context = {'topics': topics}
+    return render(request, 'base/topics.html', context)
+
+def activity_page(request):
+    room_messages = Message.objects.all()
+    return render(request, 'base/activity.html', {'room_messages': room_messages})
